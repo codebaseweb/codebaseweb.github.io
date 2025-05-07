@@ -19,7 +19,20 @@
 </div> 
  <center><div id="" wedth="95%" background="blue"> 
 <a href="https://codebaseweb.github.io/">CodeBaseWeb</a>
+    <div class="info">Этот кликер создан с помощью JavaScript!</div>
+    <button id="clickButton">Нажми меня</button>
+    <div id="counter">Кликов: 0</div>
 
+    <script>
+        const clickButton = document.getElementById('clickButton');
+        const counterDisplay = document.getElementById('counter');
+        let clickCount = 0;
+
+        clickButton.addEventListener('click', function() {
+            clickCount++;
+            counterDisplay.textContent = 'Кликов: ' + clickCount;
+        });
+    </script>
   </div> </center>
 </body>
 </html> 
