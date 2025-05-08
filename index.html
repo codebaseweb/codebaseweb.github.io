@@ -7,9 +7,14 @@
    <button id="a">Удар!</button>
    <h1 id="b">Кол-во ударов: 0</h1>
    <script>
-   const a = getElementById ("a");
-   const b = getElementById ("b");
-   
+   const a = document.getElementById ("a");
+   const b = document.getElementById ("b");
+   let c = 0;
+   a.addEventListener ('click', function() {
+   c++;
+   b.textContent = 'Кол-во ударов: ' + с;
+});
+</script>
 </body>
 </html>
 
