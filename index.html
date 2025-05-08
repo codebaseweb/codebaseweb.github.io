@@ -31,8 +31,8 @@
     </style>
 </head>
 <body>
-    <button id="clickButton">Нажми меня</button>
-    <div id="counter">Кликов: 0</div>
+    <button id="clickButton">Удар!</button>
+    <div id="counter">Кол-во ударов: 0</div>
 
     <script>
         const clickButton = document.getElementById('clickButton');
@@ -41,7 +41,7 @@
 
         clickButton.addEventListener('click', function() {
             clickCount++;
-            counterDisplay.textContent = 'Кликов: ' + clickCount;
+            counterDisplay.textContent = 'Кол-во ударов: ' + clickCount;
         });
     </script>
 </body>
