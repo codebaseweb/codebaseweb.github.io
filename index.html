@@ -2,19 +2,47 @@
 <html>
 <head>
     <title>Простой кликер с именем</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: ;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .info {
+            margin-bottom: 20px;
+            font-size: 1.2em;
+        }
+
+        button {
+            padding: 15px 30px;
+            font-size: 1.2em;
+            cursor: pointer;
+        }
+
+        #counter {
+            margin-top: 20px;
+            font-size: 1.5em;
+        }
+    </style>
 </head>
 <body>
-   <button id="a">Удар!</button>
-   <h1 id="b">Кол-во ударов: 0</h1>
-   <script>
-   const a = document.getElementById ("a");
-   const b = document.getElementById ("b");
-   let c = 0;
-   a.addEventListener ('click', function() {
-   c++;
-   b.textContent = 'Кол-во ударов: ' + с;
-});
-</script>
+    <button id="clickButton">Нажми меня</button>
+    <div id="counter">Кликов: 0</div>
+
+    <script>
+        const clickButton = document.getElementById('clickButton');
+        const counterDisplay = document.getElementById('counter');
+        let clickCount = 0;
+
+        clickButton.addEventListener('click', function() {
+            clickCount++;
+            counterDisplay.textContent = 'Кликов: ' + clickCount;
+        });
+    </script>
 </body>
 </html>
-
