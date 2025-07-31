@@ -13,7 +13,7 @@ changeTextButton.addEventListener("click", function() {
 
     // ШАГ 3: Когда кнопка нажата, мы хотим изменить текст в абзаце.
     // Мы обращаемся к переменной, где хранится наш абзац, и меняем его свойство textContent.
-    mainTextParagraph.textContent = "Текст успешно изменён с помощью JavaScript!";
+    mainTextParagraph.textContent = "Текст изменён благодаря мне)!";
 
 });
 
