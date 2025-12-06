@@ -1,10 +1,24 @@
-import TelegramBot from "node-telegram-bot-api";
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Diablo: Текстовая RPG</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="game">
+    <h1>Diablo: Тёмная тропа</h1>
 
-const token = process.env.BOT_TOKEN;
-const bot = new TelegramBot(token, { polling: true });
+    <section id="status" class="status"></section>
+    <section id="output" class="output"></section>
+    <section id="choices" class="choices"></section>
 
-bot.on("message", (msg) => {
-  const chatId = msg.chat.id;
-  const name = msg.from?.first_name || "друг";
-  bot.sendMessage(chatId, `Привет, ${name}! Ты написал: ${msg.text}`);
-});
+    <section class="controls">
+      <button id="restart">Начать заново</button>
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
