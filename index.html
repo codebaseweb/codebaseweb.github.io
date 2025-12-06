@@ -1,24 +1,785 @@
 <!doctype html>
 <html lang="ru">
 <head>
+  <!-- Базовые метатеги -->
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Diablo: Текстовая RPG</title>
-  <link rel="stylesheet" href="style.css" />
-</head>
-<body>
-  <main class="game">
-    <h1>Diablo: Тёмная тропа</h1>
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="dark" />
+  <meta name="theme-color" content="#131720" />
 
-    <section id="status" class="status"></section>
-    <section id="output" class="output"></section>
+  <title>Diablo: Тёмная тропа — расширенная версия</title>
+  <meta name="description" content="Текстовая RPG в стиле Diablo с изображениями, музыкой и звуковыми эффектами." />
+
+  <!-- Анимации: anime.js (CDN) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" defer></script>
+
+  <!-- Стили (встроенные) -->
+  <style>
+    :root {
+      --bg: #0b0d12;
+      --panel: #131720;
+      --text: #e6edf3;
+      --accent: #c43b3b;
+      --muted: #9aa3b2;
+      --magic: #3ba3ff;
+      --rare: #e3c045;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font: 16px/1.6 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      overflow-y: auto;
+    }
+    #bg-overlay {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(900px 400px at 30% -10%, rgba(255,255,255,.06) 0%, rgba(0,0,0,0) 40%),
+        radial-gradient(1500px 600px at 80% 120%, rgba(255,255,255,.04) 0%, rgba(0,0,0,0) 40%),
+        url("https://images.unsplash.com/photo-1549880338-65ddcdfd017b?q=80&w=1600&auto=format&fit=crop");
+      background-size: cover;
+      filter: contrast(1.05) brightness(0.95);
+    }
+    #bg-overlay::after {
+      content: "";
+      position: absolute; inset: 0;
+      background: url("https://upload.wikimedia.org/wikipedia/commons/0/07/Noise_Texture.png");
+      opacity: .07;
+      mix-blend-mode: overlay;
+    }
+    main.game {
+      max-width: 860px;
+      margin: 40px auto;
+      padding: 24px;
+      background: var(--panel);
+      border: 1px solid #222736;
+      border-radius: 12px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.35);
+    }
+    .topbar {
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    h1 { margin: 0; font-weight: 700; letter-spacing: .5px; }
+    .sound-toggle {
+      background: #151a24; border: 1px solid #2a3040; color: var(--text);
+      border-radius: 8px; padding: 8px 10px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;
+    }
+    .sound-toggle img { width: 20px; height: 20px; }
+    .sound-toggle:hover { border-color: var(--accent); }
+
+    .status {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 12px;
+      margin: 16px 0;
+    }
+    .status .card {
+      padding: 12px;
+      border: 1px solid #23283a;
+      border-radius: 8px;
+      background: #0f131b;
+    }
+    .status .label { color: var(--muted); font-size: 13px; }
+    .status .value { font-weight: 600; }
+
+    figure.scene {
+      margin: 0 0 14px 0;
+      border: 1px solid #23283a;
+      border-radius: 10px; overflow: hidden; background: #0f131b;
+    }
+    .scene img {
+      display: block; width: 100%; height: 280px; object-fit: cover;
+      transform: scale(1.02); transition: transform 600ms ease, filter 600ms ease;
+      filter: contrast(1.05) brightness(0.9) saturate(0.9);
+    }
+    .scene img.enter { transform: scale(1.06); filter: contrast(1.08) brightness(0.92) saturate(1.0); }
+    .scene figcaption {
+      padding: 10px 12px; font-size: 14px; color: var(--muted);
+      border-top: 1px solid #23283a;
+    }
+
+    section.output {
+      min-height: 160px; padding: 16px;
+      border: 1px solid #23283a; border-radius: 8px; background: #0f131b; margin-bottom: 16px;
+    }
+    .output p { margin: 0; animation: fadeIn 220ms ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(2px); } to { opacity: 1; transform: translateY(0); } }
+
+    section.choices { display: grid; gap: 10px; grid-template-columns: 1fr; }
+    button.choice {
+      padding: 12px 14px; border: 1px solid #2a3040; border-radius: 8px; background: #151a24; color: var(--text);
+      cursor: pointer; text-align: left; transition: transform 120ms ease, border-color 120ms ease;
+    }
+    button.choice:hover { border-color: var(--accent); transform: translateY(-1px); }
+
+    .item-magic { color: var(--magic); }
+    .item-rare { color: var(--rare); }
+    .rep-good { color: #7dd97d; }
+    .rep-evil { color: #ff7b7b; }
+
+    .controls { display: flex; justify-content: space-between; margin-top: 12px; align-items: center; }
+    .credits { font-size: 12px; color: var(--muted); }
+    #restart {
+      padding: 10px 14px; border: 1px solid #2a3040; border-radius: 8px; background: #121620; color: var(--text);
+      cursor: pointer;
+    }
+    #restart:hover { border-color: var(--accent); }
+
+    @media (max-width: 760px) { .status { grid-template-columns: repeat(3, 1fr); } .scene img { height: 220px; } }
+    @media (max-width: 520px) { .status { grid-template-columns: repeat(2, 1fr); } .scene img { height: 200px; } }
+  </style>
+</head>
+
+<body>
+  <!-- Глобальный фон -->
+  <div id="bg-overlay"></div>
+
+  <!-- Контент игры -->
+  <main class="game">
+    <header class="topbar">
+      <h1>Diablo: Тёмная тропа</h1>
+      <button id="soundToggle" class="sound-toggle" aria-label="Переключить звук">
+        <img id="soundIcon" alt="Звук" src="https://upload.wikimedia.org/wikipedia/commons/2/21/Speaker_Icon.svg" />
+        <span id="soundLabel">Звук: Вкл</span>
+      </button>
+    </header>
+
+    <section id="status" class="status" aria-live="polite"></section>
+
+    <figure class="scene">
+      <img id="sceneImg" src="https://images.unsplash.com/photo-1519681393784-d120267933ba?q=80&w=1600&auto=format&fit=crop" alt="Сцена" />
+      <figcaption id="sceneCaption"></figcaption>
+    </figure>
+
+    <section id="output" class="output" aria-live="polite"></section>
     <section id="choices" class="choices"></section>
 
     <section class="controls">
+      <div class="credits">
+        Музыка и SFX: Pixabay, Uppbeat, Itch.io (free). Изображения: Unsplash/WikiCommons.
+      </div>
       <button id="restart">Начать заново</button>
     </section>
   </main>
 
-  <script src="script.js"></script>
+  <!-- Аудио: внешние прямые ссылки -->
+  <!-- Фоновый эмбиент (тёмный) -->
+  <audio id="ambient" src="https://cdn.pixabay.com/download/audio/2022/10/18/audio_21b7dbf8b9.mp3?filename=dark-ambient-124199.mp3" preload="auto" loop></audio>
+
+  <!-- Альтернативные эмбиенты по сценам -->
+  <audio id="ambient_forest" src="https://cdn.pixabay.com/download/audio/2022/02/07/audio_c5a5d2f6df.mp3?filename=dark-forest-ambient-100334.mp3" preload="auto" loop></audio>
+  <audio id="ambient_catacombs" src="https://cdn.pixabay.com/download/audio/2021/11/28/audio_9cb22f4b6d.mp3?filename=dark-dungeon-ambient-94161.mp3" preload="auto" loop></audio>
+  <audio id="ambient_city" src="https://cdn.pixabay.com/download/audio/2021/10/26/audio_8c3f57a6f5.mp3?filename=dark-atmosphere-ambient-96207.mp3" preload="auto" loop></audio>
+
+  <!-- SFX -->
+  <audio id="sfx_click" src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_620eab44f1.mp3?filename=ui-click-102923.mp3" preload="auto"></audio>
+  <audio id="sfx_attack" src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_2d9fff143f.mp3?filename=sword-swing-102925.mp3" preload="auto"></audio>
+  <audio id="sfx_hit" src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_2e2b5ba05a.mp3?filename=body-hit-102926.mp3" preload="auto"></audio>
+  <audio id="sfx_crit" src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_8da6c4f1f3.mp3?filename=critical-hit-102924.mp3" preload="auto"></audio>
+  <audio id="sfx_loot" src="https://cdn.pixabay.com/download/audio/2021/08/08/audio_bf2c629af0.mp3?filename=magic-item-6014.mp3" preload="auto"></audio>
+  <audio id="sfx_portal" src="https://cdn.pixabay.com/download/audio/2022/01/06/audio_5f2e9e0b97.mp3?filename=portal-99073.mp3" preload="auto"></audio>
+  <audio id="sfx_boss" src="https://cdn.pixabay.com/download/audio/2022/01/06/audio_7ad748d7d9.mp3?filename=demon-growl-99075.mp3" preload="auto"></audio>
+
+  <!-- Скрипт (встроенный) -->
+  <script>
+    // ===== Состояние =====
+    const state = {
+      name: "Странник",
+      cls: null,
+      hp: 24, maxHp: 24,
+      gold: 0, level: 1,
+      baseDmg: 4,
+      inventory: [],
+      weapon: null,
+      location: "intro",
+      flags: {},
+      soundOn: true,
+      reputation: 0 // >0 добро, <0 зло
+    };
+
+    // ===== Элементы =====
+    const $status = document.getElementById("status");
+    const $output = document.getElementById("output");
+    const $choices = document.getElementById("choices");
+    const $restart = document.getElementById("restart");
+    const $sceneImg = document.getElementById("sceneImg");
+    const $sceneCaption = document.getElementById("sceneCaption");
+    const $soundToggle = document.getElementById("soundToggle");
+    const $soundIcon = document.getElementById("soundIcon");
+    const $soundLabel = document.getElementById("soundLabel");
+
+    // ===== Аудио =====
+    const audio = {
+      ambient: document.getElementById("ambient"),
+      ambient_forest: document.getElementById("ambient_forest"),
+      ambient_catacombs: document.getElementById("ambient_catacombs"),
+      ambient_city: document.getElementById("ambient_city"),
+      click: document.getElementById("sfx_click"),
+      attack: document.getElementById("sfx_attack"),
+      hit: document.getElementById("sfx_hit"),
+      crit: document.getElementById("sfx_crit"),
+      loot: document.getElementById("sfx_loot"),
+      portal: document.getElementById("sfx_portal"),
+      boss: document.getElementById("sfx_boss")
+    };
+
+    function play(name) {
+      const el = audio[name];
+      if (!el || !state.soundOn) return;
+      el.currentTime = 0;
+      el.play().catch(() => {});
+    }
+
+    function stopAllAmbient() {
+      Object.keys(audio).forEach(k => {
+        if (k.startsWith("ambient")) audio[k].pause();
+      });
+    }
+
+    function setAmbientScene(sceneKey) {
+      if (!state.soundOn) return;
+      stopAllAmbient();
+      let key = "ambient";
+      if (sceneKey === "forest" || sceneKey === "fields") key = "ambient_forest";
+      else if (sceneKey === "catacombs" || sceneKey === "crypt" || sceneKey === "deepCatacombs") key = "ambient_catacombs";
+      else if (sceneKey === "tristram" || sceneKey === "tower") key = "ambient_city";
+      audio[key].volume = 0.5;
+      audio[key].play().catch(() => {});
+    }
+
+    // ===== Визуальные источники =====
+    const sceneImages = {
+      intro: "https://images.unsplash.com/photo-1519681393784-d120267933ba?q=80&w=1600&auto=format&fit=crop",
+      camp: "https://images.unsplash.com/photo-1504805572947-34fad45aed3d?q=80&w=1600&auto=format&fit=crop",
+      forest: "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?q=80&w=1600&auto=format&fit=crop",
+      tristram: "https://images.unsplash.com/photo-1482192505345-5655af8882b2?q=80&w=1600&auto=format&fit=crop",
+      fields: "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?q=80&w=1600&auto=format&fit=crop",
+      chapelEntrance: "https://images.unsplash.com/photo-1523415472207-1f4f7f4ef72c?q=80&w=1600&auto=format&fit=crop",
+      tower: "https://images.unsplash.com/photo-1501785888041-af3ef285b470?q=80&w=1600&auto=format&fit=crop",
+      catacombs: "https://images.unsplash.com/photo-1558980664-10f0906477fb?q=80&w=1600&auto=format&fit=crop",
+      crypt: "https://images.unsplash.com/photo-1523415472207-1f4f7f4ef72c?q=80&w=1600&auto=format&fit=crop",
+      deepCatacombs: "https://images.unsplash.com/photo-1549880338-65ddcdfd017b?q=80&w=1600&auto=format&fit=crop"
+    };
+
+    function setSceneVisual(id, caption) {
+      const src = sceneImages[id] || sceneImages["camp"];
+      $sceneImg.classList.add("enter");
+      $sceneImg.src = src;
+      $sceneCaption.textContent = caption || "";
+      setTimeout(() => $sceneImg.classList.remove("enter"), 500);
+      setAmbientScene(id);
+    }
+
+    // ===== UI =====
+    function say(text) { $output.innerHTML = `<p>${text}</p>`; }
+
+    function choices(list) {
+      $choices.innerHTML = "";
+      list.forEach(({ text, action }) => {
+        const btn = document.createElement("button");
+        btn.className = "choice";
+        btn.textContent = text;
+        btn.onclick = () => { play("click"); action(); };
+        $choices.appendChild(btn);
+      });
+      // Анимируем появление кнопок
+      anime({
+        targets: '.choice',
+        translateY: [-8, 0],
+        opacity: [0, 1],
+        delay: anime.stagger(80),
+        duration: 280,
+        easing: 'easeOutQuad'
+      });
+    }
+
+    function renderItem(item) {
+      if (!item) return "";
+      const cls = item.rarity==="magic" ? "item-magic" : item.rarity==="rare" ? "item-rare" : "";
+      return `<span class="${cls}">${item.name} [${item.minDmg}-${item.maxDmg}]</span>`;
+    }
+    function renderClass(cls) {
+      if(!cls) return "не выбран";
+      if(cls==="warrior") return "Воин";
+      if(cls==="monk") return "Монах";
+      if(cls==="sorcerer") return "Колдун";
+      return cls;
+    }
+    function renderRep(rep) {
+      const cls = rep>=0 ? "rep-good" : "rep-evil";
+      const label = rep>=0 ? `Доблесть ${rep}` : `Тьма ${Math.abs(rep)}`;
+      return `<span class="${cls}">${label}</span>`;
+    }
+    function showStatus() {
+      const w = state.weapon ? renderItem(state.weapon) : "без оружия";
+      $status.innerHTML = `
+        <div class="card"><div class="label">Класс</div><div class="value">${renderClass(state.cls)}</div></div>
+        <div class="card"><div class="label">Здоровье</div><div class="value">${state.hp}/${state.maxHp}</div></div>
+        <div class="card"><div class="label">Золото</div><div class="value">${state.gold}</div></div>
+        <div class="card"><div class="label">Оружие</div><div class="value">${w}</div></div>
+        <div class="card"><div class="label">Репутация</div><div class="value">${renderRep(state.reputation)}</div></div>
+      `;
+    }
+
+    // ===== Утилиты =====
+    function randInt(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
+    function chance(p){ return Math.random() < p; }
+
+    function makeWeapon(name, minDmg, maxDmg, rarity) {
+      return { type: "weapon", name, minDmg, maxDmg, rarity };
+    }
+    function equip(item){
+      if(item.type==="weapon"){
+        state.weapon = item;
+        say(`Ты экипировал: ${item.name}.`);
+      }
+    }
+    function setClass(cls){
+      state.cls = cls;
+      if(cls==="warrior"){ state.maxHp = 30; state.hp = 30; state.baseDmg = 6; }
+      if(cls==="monk"){ state.maxHp = 26; state.hp = 26; state.baseDmg = 5; state.flags.dodge = 0.2; }
+      if(cls==="sorcerer"){ state.maxHp = 22; state.hp = 22; state.baseDmg = 3; state.flags.arcane = 1; }
+    }
+    function heal(amount){ state.hp = Math.min(state.hp + amount, state.maxHp); }
+
+    function rollHeroDmg(){
+      const base = state.baseDmg;
+      const w = state.weapon ? randInt(state.weapon.minDmg, state.weapon.maxDmg) : 0;
+      const isCrit = chance(0.12);
+      const total = (base + w) * (isCrit ? 2 : 1);
+      play(isCrit ? "crit" : "attack");
+      return total;
+    }
+
+    // ===== Бой =====
+    function combat(enemy, onWin){
+      setSceneVisual(state.location, `Схватка: ${enemy.name}`);
+      say(`Тебя встречает ${enemy.name}.`);
+      const loop = () => {
+        choices([
+          { text: "Атаковать", action: () => {
+            const dmg = rollHeroDmg();
+            enemy.hp -= dmg;
+            say(`Ты наносишь ${dmg} урона. У ${enemy.name} осталось ${Math.max(enemy.hp,0)} HP.`);
+            if(enemy.hp<=0){
+              const gold = enemy.gold || 0;
+              state.gold += gold;
+              say(`Ты свершил правосудие над ${enemy.name}. Золото: +${gold}.`);
+              play("loot");
+              lootDrop(enemy);
+              choices([{ text: "Продолжить", action: onWin }]);
+              return;
+            }
+            let edmg = randInt(enemy.minDmg, enemy.maxDmg);
+            if(state.cls==="monk" && chance(state.flags.dodge || 0)){ edmg = 0; }
+            if(state.cls==="sorcerer"){ edmg = Math.max(0, edmg-1); }
+            state.hp -= edmg;
+            if(edmg===0){
+              say(`Ты уклонился от удара ${enemy.name}.`);
+            } else {
+              play("hit");
+              say(`${enemy.name} ранит тебя на ${edmg}. Твоё здоровье: ${Math.max(state.hp,0)}.`);
+            }
+            if(state.hp<=0){
+              say("Тьма поглотила тебя. Игра окончена.");
+              choices([{ text: "Начать заново", action: restart }]);
+              return;
+            }
+            loop();
+          }},
+          { text: "Использовать лечебный флакон", action: () => {
+            const idx = state.inventory.findIndex(i=>i.type==="potion");
+            if(idx>-1){
+              const p = state.inventory.splice(idx,1)[0];
+              heal(p.heal);
+              say(`Ты выпиваешь флакон (+${p.heal} HP).`);
+            } else { say("Флаконов не осталось."); }
+            loop();
+          }},
+          { text: "Отступить", action: () => goto("camp") }
+        ]);
+        showStatus();
+      };
+      loop();
+    }
+
+    // ===== Лут и репутация =====
+    function lootDrop(enemy){
+      const drops = [];
+      if(chance(0.6)) drops.push({ type:"gold", amount: randInt(3, 10) });
+      if(chance(0.35)){
+        const roll = Math.random();
+        let rarity = "normal";
+        if(roll>0.85) rarity = "rare";
+        else if(roll>0.6) rarity = "magic";
+        const wpool = [
+          makeWeapon("Клинок падшего", 2, 6, rarity),
+          makeWeapon("Святое копьё", 3, 7, rarity),
+          makeWeapon("Посох тления", 1, 8, rarity),
+          makeWeapon("Коса сборщика душ", 2, 9, rarity)
+        ];
+        drops.push(wpool[randInt(0, wpool.length-1)]);
+      }
+      if(chance(0.4)) drops.push({ type:"potion", name:"Лечебный флакон", heal: 6 });
+
+      if(drops.length===0){ say("С трупа не удалось ничего полезного добыть."); return; }
+      const lines = drops.map(d=>{
+        if(d.type==="gold"){ return `Золото: +${d.amount}`; }
+        if(d.type==="potion"){ return `Предмет: ${d.name} (+${d.heal} HP)`; }
+        if(d.type==="weapon"){ return `Оружие: ${d.name} [${d.minDmg}-${d.maxDmg}] (${d.rarity})`; }
+        return "Находка.";
+      }).join("<br/>");
+      say(`Добыча:<br/>${lines}`);
+      drops.forEach(d=>{
+        if(d.type==="gold"){ state.gold += d.amount; }
+        else { state.inventory.push(d); }
+      });
+      showStatus();
+    }
+
+    function repChange(amount){
+      state.reputation += amount;
+      showStatus();
+    }
+
+    // ===== Сцены и сюжет =====
+    const scenes = {
+      intro: {
+        enter(){
+          setSceneVisual("intro", "Ночь над Тристрамом. Шёпот зовёт.");
+          say("Ночь над Тристрама. Колокол молчит. Шёпот из катакомб зовёт тебя по имени.");
+          choices([
+            { text: "Выбрать класс: Воин", action: ()=> { setClass("warrior"); goto("camp"); } },
+            { text: "Выбрать класс: Монах", action: ()=> { setClass("monk"); goto("camp"); } },
+            { text: "Выбрать класс: Колдун", action: ()=> { setClass("sorcerer"); goto("camp"); } }
+          ]);
+        }
+      },
+
+      camp: {
+        enter(){
+          setSceneVisual("camp", "Лагерь у мостика. Костёр потрескивает.");
+          say("Лагерь у мостика Тристрама. Путь ведёт в город, лес и к часовне.");
+          choices([
+            { text: "Идти в Тристрама", action: ()=> goto("tristram") },
+            { text: "Пойти в лес", action: ()=> goto("forest") },
+            { text: "Идти к часовне", action: ()=> goto("chapelEntrance") },
+            { text: "Осмотреть лагерь", action: ()=> {
+              if(!state.flags.cache){
+                state.flags.cache = true;
+                state.gold += 12;
+                state.inventory.push({ type:"potion", name:"Лечебный флакон", heal: 6 });
+                say("Ты находишь тайник: 12 золота и флакон.");
+                play("loot");
+              } else { say("Ничего нового."); }
+              choices([{ text: "Вернуться", action: ()=> goto("camp") }]);
+            }},
+          ]);
+        }
+      },
+
+      tristram: {
+        enter(){
+          setSceneVisual("tristram", "Город Тристрама. Тени длинные, двери закрыты.");
+          say("Тристрама, когда-то мирный, теперь шепчет. Торговцы боятся ночи.");
+          choices([
+            { text: "Кузнец: улучшить оружие (5 золота)", action: ()=>{
+              if(state.gold>=5 && state.weapon){
+                state.gold -= 5;
+                state.weapon.minDmg += 1; state.weapon.maxDmg += 1;
+                say("Кузнец шлифует лезвие. Оружие стало смертоноснее.");
+                play("loot");
+              } else if(!state.weapon){ say("Кузнец: принеси железо, а не воздух."); }
+              else { say("Недостаточно золота."); }
+              choices([{ text:"Вернуться", action: ()=> goto("tristram") }]);
+            }},
+            { text: "Алхимик: купить флакон (3 золота)", action: ()=>{
+              if(state.gold>=3){
+                state.gold -= 3;
+                state.inventory.push({type:"potion", name:"Лечебный флакон", heal: 6});
+                say("Алхимик шепчет рецепт и протягивает флакон.");
+                play("loot");
+              } else { say("Алхимик: тьма не берёт в долг."); }
+              choices([{ text:"Вернуться", action: ()=> goto("tristram") }]);
+            }},
+            { text: "Помочь вдове очистить колодец (+доблесть)", action: ()=>{
+              if(!state.flags.well){
+                state.flags.well = true; repChange(+1);
+                say("Ты очищаешь колодец от скверны. Вдова благодарит, город шепчет твоё имя с надеждой.");
+              } else { say("Колодец чист. Надежда ещё жива."); }
+              choices([{ text:"Вернуться", action: ()=> goto("tristram") }]);
+            }},
+            { text: "В таверну (случайное событие)", action: ()=>{
+              if(chance(0.5)){
+                say("Наёмник предлагает помощь за 8 золота.");
+                choices([
+                  { text:"Нанять наёмника", action: ()=>{
+                    if(state.gold>=8){ state.gold -= 8; state.flags.merc = true; say("Наёмник кивает и следует за тобой."); }
+                    else { say("Наёмник: вернись с монетами."); }
+                    choices([{ text:"Вернуться", action: ()=> goto("tristram") }]);
+                  }},
+                  { text:"Отказаться", action: ()=> goto("tristram") }
+                ]);
+              } else {
+                say("Старуха рассказывает про Башню магов: там хранится гримуар, поющий кровью.");
+                choices([{ text:"К Башне магов", action: ()=> goto("tower") }, { text:"Остаться в городе", action: ()=> goto("tristram") }]);
+              }
+            }},
+            { text: "Вернуться в лагерь", action: ()=> goto("camp") }
+          ]);
+          showStatus();
+        }
+      },
+
+      forest: {
+        enter(){
+          setSceneVisual("forest", "Тёмный лес. Глаза в кустах.");
+          say("Тёмный лес. Демоны охотятся. Тропы ведут к Проклятым полям.");
+          choices([
+            { text: "Встретить падшего", action: ()=>{
+              const enemy = { name:"Падший демон", hp: 12, minDmg:1, maxDmg:4, gold: 4 };
+              combat(enemy, ()=> goto("forest"));
+            }},
+            { text: "Обыскать чащу", action: ()=>{
+              if(chance(0.5)){
+                const herb = { type:"potion", name:"Флакон травника", heal: 5 };
+                state.inventory.push(herb);
+                say("Ты находишь лечебный флакон травника.");
+                play("loot");
+              } else { say("Только шорохи и пустота."); }
+              choices([{ text:"Вернуться", action: ()=> goto("forest") }]);
+            }},
+            { text: "Идти на Проклятые поля", action: ()=> goto("fields") },
+            { text: "Вернуться к лагерю", action: ()=> goto("camp") }
+          ]);
+        }
+      },
+
+      fields: {
+        enter(){
+          setSceneVisual("fields", "Проклятые поля. Ветер несёт пепел.");
+          say("Поля под проклятием. Орды падших собираются в стаи.");
+          choices([
+            { text: "Засада стаи падших", action: ()=>{
+              const enemy = { name:"Вожак стаи", hp: 18, minDmg:2, maxDmg:5, gold: 8 };
+              combat(enemy, ()=> goto("fields"));
+            }},
+            { text: "Странствующий паладин (выбор)", action: ()=>{
+              say("Паладин просит святую помощь: разгромить скверну в часовне. Поможешь?");
+              choices([
+                { text:"Помочь (+доблесть)", action: ()=> { repChange(+1); goto("chapelEntrance"); }},
+                { text:"Отказать (+тьма)", action: ()=> { repChange(-1); goto("fields"); }}
+              ]);
+            }},
+            { text: "Возврат в лес", action: ()=> goto("forest") }
+          ]);
+        }
+      },
+
+      chapelEntrance: {
+        enter(){
+          setSceneVisual("chapelEntrance", "Вход в часовню. Внутри пахнет пеплом.");
+          say("Часовня Тристрама. Дверь приоткрыта. Внутри ждут катакомбы.");
+          choices([
+            { text: "Спуститься в катакомбы", action: ()=> goto("catacombs") },
+            { text: "Осмотреть хоры", action: ()=>{
+              if(!state.flags.chapelKey){
+                state.flags.chapelKey = true;
+                state.inventory.push({ type:"key", name:"Ключ катакомб" });
+                say("Под пюпитром ты находишь ржавый ключ.");
+                play("loot");
+              } else { say("Ты уже забрал ключ."); }
+              choices([{ text:"Назад", action: ()=> goto("chapelEntrance") }]);
+            }},
+            { text: "Вернуться в лагерь", action: ()=> goto("camp") }
+          ]);
+        }
+      },
+
+      tower: {
+        enter(){
+          setSceneVisual("tower", "Башня магов. Резонанс рун в камне.");
+          say("Башня магов. Гримуар шепчет руны, требуя платы.");
+          choices([
+            { text: "Исследовать гримуар (жертва 2 HP, +урон)", action: ()=>{
+              if(!state.flags.grimoire){
+                state.flags.grimoire = true;
+                state.baseDmg += 2;
+                state.hp = Math.max(1, state.hp-2);
+                say("Ты отдал каплю крови. Руны усиливают твою силу.");
+                play("boss");
+              } else { say("Гримуар насытился."); }
+              choices([{ text:"Назад", action: ()=> goto("tower") }]);
+            }},
+            { text: "Учить заклинание (только Колдун)", action: ()=>{
+              if(state.cls==="sorcerer" && !state.flags.arcaneBolt){
+                state.flags.arcaneBolt = true;
+                say("Ты изучаешь 'Чародейский разряд': иногда наносит +3 урона.");
+              } else if(state.cls!=="sorcerer") { say("Руны закрыты для непосвящённых."); }
+              else { say("Заклинание уже твоё."); }
+              choices([{ text:"Назад", action: ()=> goto("tower") }]);
+            }},
+            { text: "Вернуться в Тристрама", action: ()=> goto("tristram") }
+          ]);
+        }
+      },
+
+      catacombs: {
+        enter(){
+          setSceneVisual("catacombs", "Катакомбы. Кости хрустят под ногами.");
+          say("Катакомбы. Тьма зовёт глубже. Есть врата к склепу.");
+          choices([
+            { text:"Продвигаться глубже", action: ()=>{
+              const enemy = { name:"Скелет-воин", hp: 16, minDmg:2, maxDmg:5, gold: 7 };
+              combat(enemy, ()=> goto("catacombs"));
+            }},
+            { text:"Алтарь крови (сила за цену)", action: ()=>{
+              if(!state.flags.bloodAltar){
+                state.flags.bloodAltar = true;
+                state.baseDmg += 1; state.hp = Math.max(1, state.hp-2);
+                repChange(-1);
+                say("Ты жертвуешь кровь. Сила шепчет, люди будут бояться тебя.");
+                play("boss");
+              } else { say("Алтарь молчит. Ему достаточно."); }
+              choices([{ text:"Вернуться", action: ()=> goto("catacombs") }]);
+            }},
+            { text:"Врата к склепу", action: ()=>{
+              if(!state.flags.chapelKey){
+                say("Нужен ключ катакомб.");
+                choices([{ text:"Назад", action: ()=> goto("catacombs") }]);
+              } else { play("portal"); goto("crypt"); }
+            }},
+            { text:"Спуститься глубже (уровни)", action: ()=> goto("deepCatacombs") },
+            { text:"Вернуться к входу", action: ()=> goto("chapelEntrance") }
+          ]);
+        }
+      },
+
+      deepCatacombs: {
+        enter(){
+          setSceneVisual("deepCatacombs", "Глубокие уровни катакомб. Воздух густеет.");
+          say("Глубже. Здесь правит Повелитель. Ловушки и шёпот имен.");
+          choices([
+            { text:"Ловушка костей (потеря 3 HP)", action: ()=>{
+              state.hp = Math.max(1, state.hp-3);
+              say("Лезвия кости царапают тебя. Кровь зовёт.");
+              choices([{ text:"Дальше", action: ()=> goto("deepCatacombs") }]);
+            }},
+            { text:"Бой с призраком", action: ()=>{
+              const enemy = { name:"Призрак стража", hp: 20, minDmg:2, maxDmg:6, gold: 10 };
+              combat(enemy, ()=> goto("deepCatacombs"));
+            }},
+            { text:"Трон Повелителя", action: ()=>{
+              if(!state.flags.relic){
+                say("Врата закрыты. Нужна Реликвия души из склепа.");
+                choices([{ text:"Назад", action: ()=> goto("deepCatacombs") }]);
+              } else {
+                play("boss");
+                const enemy = { name:"Повелитель тьмы", hp: 28, minDmg:3, maxDmg:8, gold: 25 };
+                combat(enemy, ()=> {
+                  state.flags.finalBoss = true;
+                  say("Повелитель пал. Тьма рассеивается — или затаивается.");
+                  const ending = state.reputation>=0 ? "Ты стал защитником Тристрама." : "Город боится тебя так же, как и тьму.";
+                  say(ending);
+                  choices([{ text:"Вернуться в лагерь", action: ()=> goto("camp") }]);
+                });
+              }
+            }},
+            { text:"Вернуться в катакомбы", action: ()=> goto("catacombs") }
+          ]);
+        }
+      },
+
+      crypt: {
+        enter(){
+          setSceneVisual("crypt", "Склеп. Холодные камни и шёпот имен.");
+          say("Склеп. На пьедестале лежит реликвия.");
+          choices([
+            { text:"Взять Реликвию души", action: ()=>{
+              if(!state.flags.relic){
+                state.flags.relic = true;
+                state.inventory.push({ type:"quest", name:"Реликвия души" });
+                say("Ты берёшь реликвию. Воздух дрожит.");
+                play("loot");
+              } else { say("Пьедестал пуст."); }
+              choices([{ text:"Назад", action: ()=> goto("crypt") }]);
+            }},
+            { text:"Покинуть склеп", action: ()=> goto("catacombs") }
+          ]);
+          if(state.flags.relic && !state.flags.bossDefeated){
+            const enemy = { name:"Сторож Лазаря", hp: 24, minDmg:3, maxDmg:7, gold: 20 };
+            play("boss");
+            combat(enemy, ()=> {
+              state.flags.bossDefeated = true;
+              say("Сторож пал. Тишина возвращается, но ненадолго.");
+              choices([{ text:"Вернуться к склепу", action: ()=> goto("crypt") }]);
+            });
+          }
+        }
+      }
+    };
+
+    // ===== Навигация =====
+    function goto(sceneId){
+      const scene = scenes[sceneId];
+      if(!scene){ say("Тропа теряется в тумане."); return; }
+      state.location = sceneId;
+      scene.enter();
+      showStatus();
+    }
+
+    // ===== Контролы =====
+    function restart(){
+      state.name = "Странник";
+      state.cls = null;
+      state.maxHp = 24; state.hp = 24;
+      state.gold = 0; state.level = 1;
+      state.baseDmg = 4;
+      state.inventory = [];
+      state.weapon = null;
+      state.location = "intro";
+      state.flags = {};
+      state.soundOn = true;
+      state.reputation = 0;
+      goto("intro");
+    }
+
+    $soundToggle.addEventListener("click", ()=>{
+      state.soundOn = !state.soundOn;
+      $soundIcon.src = state.soundOn
+        ? "https://upload.wikimedia.org/wikipedia/commons/2/21/Speaker_Icon.svg"
+        : "https://upload.wikimedia.org/wikipedia/commons/e/e3/Speaker_Icon_Muted.svg";
+      $soundLabel.textContent = state.soundOn ? "Звук: Вкл" : "Звук: Выкл";
+      if(state.soundOn){ setAmbientScene(state.location); } else { stopAllAmbient(); }
+    });
+    $restart.addEventListener("click", restart);
+    document.addEventListener("visibilitychange", ()=>{
+      if(document.hidden) stopAllAmbient();
+      else if(state.soundOn) setAmbientScene(state.location);
+    });
+
+    // ===== Модификатор урона (пример классовой способности) =====
+    const oldRoll = rollHeroDmg;
+    rollHeroDmg = function(){
+      let dmg = oldRoll();
+      if(state.flags.arcaneBolt && state.cls==="sorcerer" && chance(0.25)){
+        dmg += 3;
+        say("Чародейский разряд пронзает тьму (+3).");
+      }
+      if(state.flags.merc && chance(0.2)){
+        say("Наёмник наносит дополнительный удар (+2).");
+        dmg += 2;
+      }
+      return dmg;
+    };
+
+    // ===== Старт =====
+    restart();
+  </script>
 </body>
 </html>
