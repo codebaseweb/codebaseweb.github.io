@@ -1,34 +1,762 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <title>Магнат Лимонада (Кликер)</title>
-    <style>
-        body { font-family: sans-serif; padding: 15px; }
-        .status-box { border: 1px solid gold; padding: 15px; margin-bottom: 20px; background: #fffaf0; font-size: 1.2em; }
-        .upgrade-card { border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; }
-        .action-button { padding: 10px 15px; background: #4CAF50; color: white; border: none; cursor: pointer; }
-    </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Темный Санктуарий — текстовая ARPG</title>
+<style>
+  body { font-family: system-ui, sans-serif; background:#0f0f13; color:#e7e7ea; margin:0; }
+  #app { max-width:900px; margin:20px auto; padding:16px; background:#15151b; border:1px solid #2a2a35; border-radius:10px; }
+  h1,h2,h3 { margin:0 0 10px; }
+  .row { display:flex; gap:12px; flex-wrap:wrap; }
+  .panel { flex:1 1 280px; background:#1b1b22; padding:12px; border:1px solid #2a2a35; border-radius:8px; }
+  .log { height:220px; overflow:auto; background:#121218; padding:10px; border-radius:8px; }
+  .choices { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+  button { background:#2a2a35; color:#e7e7ea; border:1px solid #3a3a49; padding:8px 12px; border-radius:6px; cursor:pointer; }
+  button:hover { background:#3a3a49; }
+  .badge { display:inline-block; padding:2px 6px; border-radius:6px; background:#2a2a35; margin-right:6px; font-size:12px; }
+  .good { color:#8ef08e; } .warn { color:#f0d08e; } .bad { color:#f08e8e; }
+  .grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(200px,1fr)); gap:8px; }
+  .item { background:#14141a; border:1px dashed #3a3a49; padding:8px; border-radius:6px; }
+  .rare { border-color:#5aa0ff; } .epic { border-color:#c089ff; }
+  .footer { margin-top:10px; font-size:12px; color:#9aa0a6; }
+</style>
 </head>
 <body>
+<div id="app">
+  <h1>Темный Санктуарий</h1>
+  <div class="row">
+    <div class="panel">
+      <h2>Персонаж</h2>
+      <div id="char"></div>
+      <div class="choices" id="charActions"></div>
+    </div>
+    <div class="panel">
+      <h2>Локация</h2>
+      <div id="location"></div>
+      <div class="choices" id="locActions"></div>
+    </div>
+  </div>
 
-    <h1>🍋 Магнат Лимонада</h1>
+  <div class="row">
+    <div class="panel">
+      <h3>Инвентарь</h3>
+      <div id="inventory" class="grid"></div>
+    </div>
+    <div class="panel">
+      <h3>Квесты</h3>
+      <div id="quests"></div>
+      <div class="choices" id="questActions"></div>
+    </div>
+  </div>
 
-    <div id="status-display" class="status-box">
-        </div>
+  <div class="panel">
+    <h3>Журнал</h3>
+    <div id="log" class="log"></div>
+    <div class="choices" id="globalActions"></div>
+    <div class="footer">Сохранение: локально | Версия: 0.9</div>
+  </div>
+</div>
 
-    <button id="sell-button" class="action-button" style="background: orange; padding: 20px;">
-        Продать стакан лимонада! (+1)
-    </button>
+<script>
+/* =============================
+   ДАННЫЕ МИРА (можно расширять)
+============================= */
+const CLASSES = [
+  {
+    id:"warrior", name:"Воин", desc:"Тяжёлые удары, высокий запас здоровья",
+    base:{ hp: 120, mana: 30, str: 8, agi: 4, int: 2 },
+    skills:[
+      { id:"power_strike", name:"Мощный удар", type:"active", scale:"str", manaCost:5, dmg: 10 },
+      { id:"bulwark", name:"Оплот", type:"passive", effect:{ hpBonus:10 } }
+    ]
+  },
+  {
+    id:"huntress", name:"Охотница", desc:"Меткость, уклонение, быстрые атаки",
+    base:{ hp: 90, mana: 40, str: 5, agi: 8, int: 3 },
+    skills:[
+      { id:"quick_shot", name:"Скоростной выстрел", type:"active", scale:"agi", manaCost:4, dmg: 8 },
+      { id:"evasion", name:"Уклонение", type:"passive", effect:{ dodgeBonus:5 } }
+    ]
+  },
+  {
+    id:"mage", name:"Маг", desc:"Высокий урон заклинаниями, хрупкое тело",
+    base:{ hp: 70, mana: 80, str: 2, agi: 3, int: 9 },
+    skills:[
+      { id:"arcane_bolt", name:"Чародейский разряд", type:"active", scale:"int", manaCost:6, dmg: 12 },
+      { id:"focus", name:"Фокус", type:"passive", effect:{ manaBonus:10 } }
+    ]
+  },
+  {
+    id:"necromancer", name:"Некромант", desc:"Тёмная магия, эффекты истощения",
+    base:{ hp: 80, mana: 70, str: 3, agi: 3, int: 8 },
+    skills:[
+      { id:"bone_shard", name:"Костяной осколок", type:"active", scale:"int", manaCost:5, dmg: 9 },
+      { id:"drain", name:"Истощение", type:"passive", effect:{ lifesteal:5 } }
+    ]
+  }
+];
 
-    <h2>🛠️ Улучшения / Автоматизация</h2>
-    <div id="upgrades-list">
-        </div>
-    
-    <h2>Журнал:</h2>
-    <div id="output">Начните продавать лимонад!</div>
-    
-    <script src="game.js"></script>
+const LOCATIONS = [
+  { id:"village", name:"Деревня Пепельник", tier:1, neighbors:["graveyard","forest"], npcs:["elder","blacksmith"], encounters:["rat","bandit"] },
+  { id:"graveyard", name:"Старое кладбище", tier:1, neighbors:["village","crypt"], npcs:[], encounters:["skeleton","wraith"] },
+  { id:"forest", name:"Мрачный бор", tier:1, neighbors:["village","swamp"], npcs:["herbalist"], encounters:["wolf","bandit"] },
+  { id:"crypt", name:"Затхлая крипта", tier:2, neighbors:["graveyard","catacomb"], npcs:[], encounters:["skeleton","ghoul","necroling"] },
+  { id:"swamp", name:"Топь Шёпотов", tier:2, neighbors:["forest","ruins"], npcs:["tinker"], encounters:["slime","witch","bandit_chief"] },
+  { id:"ruins", name:"Руины Старого храма", tier:3, neighbors:["swamp"], npcs:["wandering_mage"], encounters:["cultist","abomination","wraith_lord"] }
+];
 
+const NPCS = {
+  elder: { id:"elder", name:"Старейшина", role:"квестодатель", quests:["q_rats","q_blade","q_crypt"] },
+  blacksmith: { id:"blacksmith", name:"Кузнец", role:"ремесленник", craft:["r_iron_blade","r_hunter_bow"] },
+  herbalist: { id:"herbalist", name:"Травница", role:"торговец/квестодатель", quests:["q_herbs"], craft:["r_mana_tonic"] },
+  tinker: { id:"tinker", name:"Мастер-находкин", role:"ремесленник", craft:["r_leather_armor"] },
+  wandering_mage: { id:"wandering_mage", name:"Странствующий маг", role:"квестодатель", quests:["q_ruins_boss"] }
+};
+
+const ENEMIES = {
+  rat: { name:"Крыса", tier:1, hp:18, dmg:[2,4], loot:["fur","bone"], xp:6 },
+  wolf: { name:"Волк", tier:1, hp:26, dmg:[3,6], loot:["fur","fang"], xp:9 },
+  bandit: { name:"Бандит", tier:1, hp:30, dmg:[4,7], loot:["scrap","coin"], xp:10 },
+  skeleton: { name:"Скелет", tier:1, hp:24, dmg:[3,6], loot:["bone","rust_iron"], xp:8 },
+  wraith: { name:"Призрак", tier:2, hp:32, dmg:[4,8], loot:["ectoplasm","bone"], xp:14 },
+  ghoul: { name:"Вурдалак", tier:2, hp:40, dmg:[6,9], loot:["rotted_flesh","fang"], xp:18 },
+  necroling: { name:"Некролинг", tier:2, hp:34, dmg:[5,8], loot:["ectoplasm","scrap"], xp:16 },
+  slime: { name:"Слизень", tier:2, hp:36, dmg:[4,7], loot:["gel","herb"], xp:12 },
+  witch: { name:"Ведьма", tier:2, hp:38, dmg:[5,9], loot:["herb","ectoplasm"], xp:20 },
+  bandit_chief: { name:"Главарь разбойников", tier:2, hp:55, dmg:[7,11], loot:["rare_token","coin"], xp:28 },
+  cultist: { name:"Культист", tier:3, hp:48, dmg:[7,10], loot:["dark_ink","scrap"], xp:26 },
+  abomination: { name:"Мерзость", tier:3, hp:70, dmg:[9,14], loot:["abyss_shard","rotted_flesh"], xp:40 },
+  wraith_lord: { name:"Повелитель призраков", tier:3, hp:80, dmg:[10,16], loot:["epic_core","ectoplasm"], xp:55 }
+};
+
+const ITEMS = {
+  fur: { name:"Шкура", type:"mat", rarity:"common" },
+  bone: { name:"Кость", type:"mat", rarity:"common" },
+  fang: { name:"Клык", type:"mat", rarity:"common" },
+  scrap: { name:"Металлолом", type:"mat", rarity:"common" },
+  coin: { name:"Монета", type:"cur", rarity:"common" },
+  rust_iron: { name:"Ржавое железо", type:"mat", rarity:"common" },
+  ectoplasm: { name:"Эктоплазма", type:"mat", rarity:"uncommon" },
+  rotted_flesh: { name:"Гнилая плоть", type:"mat", rarity:"common" },
+  gel: { name:"Гель", type:"mat", rarity:"common" },
+  herb: { name:"Трава", type:"mat", rarity:"common" },
+  rare_token: { name:"Редкий жетон", type:"cur", rarity:"rare" },
+  dark_ink: { name:"Тёмные чернила", type:"mat", rarity:"uncommon" },
+  abyss_shard: { name:"Осколок Бездны", type:"mat", rarity:"epic" },
+  epic_core: { name:"Эпический ядро", type:"mat", rarity:"epic" },
+
+  iron_blade: { name:"Железный клинок", type:"weapon", rarity:"uncommon", stat:{ dmg:+6 } },
+  hunter_bow: { name:"Лук охотницы", type:"weapon", rarity:"uncommon", stat:{ dmg:+6 } },
+  leather_armor: { name:"Кожаный доспех", type:"armor", rarity:"uncommon", stat:{ hp:+10 } },
+  mana_tonic: { name:"Тоник маны", type:"consum", rarity:"uncommon", effect:{ mana:+20 } }
+};
+
+const RECIPES = {
+  r_iron_blade: { name:"Клинок из железа", requires:{ rust_iron:2, scrap:1 }, result:"iron_blade" },
+  r_leather_armor: { name:"Кожаный доспех", requires:{ fur:2, scrap:1 }, result:"leather_armor" },
+  r_hunter_bow: { name:"Лук охотницы", requires:{ fang:2, scrap:1 }, result:"hunter_bow" },
+  r_mana_tonic: { name:"Тоник маны", requires:{ herb:2, gel:1 }, result:"mana_tonic" }
+};
+
+const QUESTS = {
+  q_rats: {
+    name:"Грызущая беда", giver:"elder",
+    desc:"Уничтожить 5 крыс на окраине деревни.",
+    type:"kill", target:"rat", count:5, reward:{ xp:30, items:{ coin:5 } }
+  },
+  q_blade: {
+    name:"Клинок для стража", giver:"elder",
+    desc:"Сковать и принести железный клинок.",
+    type:"deliver", item:"iron_blade", reward:{ xp:40, items:{ coin:10 } }
+  },
+  q_crypt: {
+    name:"Тени крипты", giver:"elder",
+    desc:"Исследовать крипту и одолеть 3 скелета.",
+    type:"kill", target:"skeleton", count:3, reward:{ xp:50, items:{ ectoplasm:1 } }
+  },
+  q_herbs: {
+    name:"Зелье для ученицы", giver:"herbalist",
+    desc:"Сварить тоник маны и принести травнице.",
+    type:"deliver", item:"mana_tonic", reward:{ xp:35, items:{ coin:7 } }
+  },
+  q_ruins_boss: {
+    name:"Повелитель Призраков",
+    giver:"wandering_mage",
+    desc:"Победить Повелителя призраков в руинах.",
+    type:"kill", target:"wraith_lord", count:1, reward:{ xp:120, items:{ epic_core:1, coin:25 } }
+  }
+};
+
+/* =============================
+   СОСТОЯНИЕ И УТИЛИТЫ
+============================= */
+const randInt = (a,b)=>Math.floor(Math.random()*(b-a+1))+a;
+const pick = arr => arr[randInt(0,arr.length-1)];
+
+function deepClone(o){ return JSON.parse(JSON.stringify(o)); }
+
+const SAVE_KEY = "dark_sanctuary_save";
+
+let G = {
+  player:null,
+  location:"village",
+  quests:[], // {id, progress, status: "active/complete"}
+  inventory:{}, // key->count
+  equipped:{ weapon:null, armor:null },
+  log:[],
+  inCombat:null, // { enemyId, hp }
+};
+
+function addLog(text){ 
+  G.log.unshift(text); 
+  renderLog(); 
+}
+
+function addItem(id, count=1){
+  G.inventory[id] = (G.inventory[id]||0)+count;
+}
+
+function removeItem(id, count=1){
+  G.inventory[id] = (G.inventory[id]||0)-count;
+  if (G.inventory[id] <= 0) delete G.inventory[id];
+}
+
+function hasItems(req){
+  return Object.entries(req).every(([id,c]) => (G.inventory[id]||0) >= c );
+}
+
+function equip(itemId){
+  const item = ITEMS[itemId];
+  if (!item) return;
+  if (item.type === "weapon") {
+    if (G.equipped.weapon) addItem(G.equipped.weapon,1);
+    G.equipped.weapon = itemId;
+    removeItem(itemId,1);
+    addLog(`Экипировано оружие: ${item.name}.`);
+  } else if (item.type === "armor") {
+    if (G.equipped.armor) addItem(G.equipped.armor,1);
+    G.equipped.armor = itemId;
+    removeItem(itemId,1);
+    addLog(`Экипирован доспех: ${item.name}.`);
+  } else {
+    addLog("Этот предмет нельзя экипировать.");
+  }
+  updateStats();
+  renderAll();
+}
+
+function consume(itemId){
+  const item = ITEMS[itemId];
+  if (!item || item.type !== "consum") return;
+  if ((G.inventory[itemId]||0) < 1) return;
+  if (item.effect?.mana) G.player.mana = Math.min(G.player.manaMax, G.player.mana + item.effect.mana);
+  removeItem(itemId,1);
+  addLog(`Использован: ${item.name}.`);
+  renderAll();
+}
+
+function applyPassives(){
+  // Ресет базовых макс-статов
+  G.player.hpMax = G.player.base.hp + (G.player.level*5);
+  G.player.manaMax = G.player.base.mana + (G.player.level*5);
+  G.player.str = G.player.base.str;
+  G.player.agi = G.player.base.agi;
+  G.player.int = G.player.base.int;
+  G.player.dodge = 0;
+  G.player.lifesteal = 0;
+  // Экипировка
+  if (G.equipped.armor){
+    const st = ITEMS[G.equipped.armor]?.stat||{};
+    if (st.hp) G.player.hpMax += st.hp;
+  }
+  if (G.equipped.weapon){
+    // weapon adds damage via calc, handled later
+  }
+  // Пассивки класса
+  for (const sk of G.player.skills){
+    if (sk.type === "passive" && sk.effect){
+      if (sk.effect.hpBonus) G.player.hpMax += sk.effect.hpBonus;
+      if (sk.effect.manaBonus) G.player.manaMax += sk.effect.manaBonus;
+      if (sk.effect.dodgeBonus) G.player.dodge += sk.effect.dodgeBonus;
+      if (sk.effect.lifesteal) G.player.lifesteal += sk.effect.lifesteal;
+    }
+  }
+  // Кэп текущих
+  G.player.hp = Math.min(G.player.hp, G.player.hpMax);
+  G.player.mana = Math.min(G.player.mana, G.player.manaMax);
+}
+
+function updateStats(){
+  applyPassives();
+}
+
+function gainXP(xp){
+  G.player.xp += xp;
+  addLog(`Получен опыт: +${xp}.`);
+  while (G.player.xp >= G.player.next){
+    G.player.xp -= G.player.next;
+    G.player.level++;
+    G.player.next = Math.round(G.player.next*1.25 + 10);
+    addLog(`Новый уровень! ${G.player.level}.`);
+    updateStats();
+  }
+}
+
+function dropLoot(list){
+  // 50% шанс по каждому типу
+  for (const id of list){
+    if (Math.random() < 0.5) addItem(id, 1);
+  }
+}
+
+function startCombat(enemyId){
+  const e = ENEMIES[enemyId];
+  G.inCombat = { enemyId, hp: e.hp };
+  addLog(`Столкновение: ${e.name}!`);
+  renderAll();
+}
+
+function playerDamageBase(){
+  let base = 3;
+  if (G.equipped.weapon){
+    const wst = ITEMS[G.equipped.weapon]?.stat||{};
+    base += wst.dmg||0;
+  }
+  // малый вклад статов
+  base += Math.floor(G.player.str*0.5 + G.player.agi*0.3 + G.player.int*0.7);
+  return base;
+}
+
+function castSkill(skillId){
+  const sk = G.player.skills.find(s=>s.id===skillId);
+  if (!sk || sk.type!=="active") return;
+  if (G.player.mana < sk.manaCost) { addLog("Недостаточно маны."); return; }
+  G.player.mana -= sk.manaCost;
+  const scaleMap = { str:G.player.str, agi:G.player.agi, int:G.player.int };
+  const dmg = playerDamageBase() + sk.dmg + Math.floor(scaleMap[sk.scale]*0.8);
+  enemyHit(dmg, `Навык: ${sk.name} (-${sk.manaCost} маны)`);
+}
+
+function enemyHit(dmg, title="Атака"){
+  if (!G.inCombat) return;
+  const e = ENEMIES[G.inCombat.enemyId];
+  G.inCombat.hp -= dmg;
+  addLog(`${title}. Урон по врагу: ${dmg}.`);
+  if (G.inCombat.hp <= 0){
+    addLog(`Победа над врагом: ${e.name}.`);
+    endCombat(true);
+    return;
+  }
+  // ответный удар
+  const miss = Math.random()*100 < G.player.dodge;
+  if (miss){ addLog("Вы уклонились от удара."); return; }
+  const edmg = randInt(e.dmg[0], e.dmg[1]);
+  G.player.hp -= edmg;
+  addLog(`Враг наносит урон: ${edmg}.`);
+  if (G.player.hp <= 0){
+    addLog("Вы пали. Возврат в деревню, -10% монет.");
+    // штраф
+    const coins = G.inventory.coin||0;
+    const lose = Math.floor(coins*0.1);
+    if (lose>0){ removeItem("coin", lose); addLog(`Утеряно монет: ${lose}.`); }
+    G.player.hp = Math.max(1, Math.floor(G.player.hpMax*0.5));
+    G.player.mana = Math.floor(G.player.manaMax*0.5);
+    G.location = "village";
+    G.inCombat = null;
+    renderAll();
+  }
+}
+
+function basicAttack(){
+  const dmg = playerDamageBase();
+  enemyHit(dmg, "Базовая атака");
+}
+
+function endCombat(victory){
+  const eId = G.inCombat.enemyId;
+  const e = ENEMIES[eId];
+  G.inCombat = null;
+  if (victory){
+    gainXP(e.xp);
+    dropLoot(e.loot);
+    // прогресс квестов
+    for (const q of G.quests){
+      const data = QUESTS[q.id];
+      if (q.status==="active" && data.type==="kill" && data.target===eId){
+        q.progress = (q.progress||0)+1;
+        addLog(`Прогресс квеста "${data.name}": ${q.progress}/${data.count}.`);
+        if (q.progress >= data.count){
+          q.status="complete";
+          addLog(`Квест завершён: "${data.name}". Вернитесь к ${NPCS[data.giver].name}.`);
+        }
+      }
+    }
+  }
+  renderAll();
+}
+
+/* =============================
+   ВЗАИМОДЕЙСТВИЕ С ЛОКАЦИЯМИ
+============================= */
+function moveTo(locId){
+  const here = LOCATIONS.find(l=>l.id===G.location);
+  if (!here.neighbors.includes(locId)){
+    addLog("Нельзя перейти напрямую.");
+    return;
+  }
+  G.location = locId;
+  addLog(`Вы прибыли: ${LOCATIONS.find(l=>l.id===locId).name}.`);
+  randomEncounter();
+  renderAll();
+}
+
+function randomEncounter(){
+  const loc = LOCATIONS.find(l=>l.id===G.location);
+  if (Math.random() < 0.6){ // 60% шанс встречи
+    const eId = pick(loc.encounters);
+    startCombat(eId);
+  } else {
+    addLog("Спокойно... пока что.");
+  }
+}
+
+function talkTo(npcId){
+  const npc = NPCS[npcId];
+  addLog(`Вы беседуете с: ${npc.name}. (${npc.role})`);
+  // предлагать квесты
+  if (npc.quests){
+    for (const qId of npc.quests){
+      if (!G.quests.find(q=>q.id===qId)){
+        addLog(`Доступен квест: "${QUESTS[qId].name}".`);
+      }
+    }
+  }
+  renderAll();
+}
+
+function acceptQuest(qId){
+  if (G.quests.find(q=>q.id===qId)){
+    addLog("Квест уже принят.");
+    return;
+  }
+  G.quests.push({ id:qId, progress:0, status:"active" });
+  addLog(`Квест принят: "${QUESTS[qId].name}".`);
+  renderAll();
+}
+
+function turnInQuest(qId){
+  const q = G.quests.find(x=>x.id===qId);
+  if (!q || q.status!=="complete"){ addLog("Квест не завершён."); return; }
+  const data = QUESTS[qId];
+  // награда
+  if (data.reward?.xp) gainXP(data.reward.xp);
+  if (data.reward?.items){
+    for (const [id,c] of Object.entries(data.reward.items)){ addItem(id,c); }
+  }
+  // убрать квест
+  G.quests = G.quests.filter(x=>x.id!==qId);
+  addLog(`Квест сдан: "${data.name}". Награда получена.`);
+  renderAll();
+}
+
+/* =============================
+   РЕМЕСЛО/КРАФТ
+============================= */
+function craft(recipeId){
+  const rec = RECIPES[recipeId];
+  if (!rec){ addLog("Рецепт не найден."); return; }
+  if (!hasItems(rec.requires)){ addLog("Недостаточно материалов."); return; }
+  for (const [id,c] of Object.entries(rec.requires)){ removeItem(id,c); }
+  addItem(rec.result,1);
+  addLog(`Создан предмет: ${ITEMS[rec.result].name}.`);
+  // прогресс квестов на доставку
+  for (const q of G.quests){
+    const data = QUESTS[q.id];
+    if (q.status==="active" && data.type==="deliver" && data.item===rec.result){
+      addLog(`Требуемый предмет для квеста "${data.name}" готов.`);
+    }
+  }
+  renderAll();
+}
+
+/* =============================
+   СОХР/ЗАГР
+============================= */
+function save(){
+  localStorage.setItem(SAVE_KEY, JSON.stringify(G));
+  addLog("Игра сохранена.");
+}
+function load(){
+  const raw = localStorage.getItem(SAVE_KEY);
+  if (!raw) return false;
+  G = JSON.parse(raw);
+  addLog("Игра загружена.");
+  renderAll();
+  return true;
+}
+function reset(){
+  localStorage.removeItem(SAVE_KEY);
+  init();
+  addLog("Новая игра.");
+}
+
+/* =============================
+   ИНИЦИАЛИЗАЦИЯ
+============================= */
+function init(){
+  G = {
+    player:null,
+    location:"village",
+    quests:[],
+    inventory:{ coin:10 },
+    equipped:{ weapon:null, armor:null },
+    log:[],
+    inCombat:null
+  };
+  renderClassSelect();
+  renderAll();
+}
+
+function createPlayer(classId){
+  const cls = CLASSES.find(c=>c.id===classId);
+  G.player = {
+    name: cls.name,
+    classId: classId,
+    base: deepClone(cls.base),
+    level:1, xp:0, next:30,
+    hp: cls.base.hp, mana: cls.base.mana,
+    hpMax: cls.base.hp, manaMax: cls.base.mana,
+    str: cls.base.str, agi: cls.base.agi, int: cls.base.int,
+    dodge:0, lifesteal:0,
+    skills: deepClone(cls.skills)
+  };
+  updateStats();
+  addLog(`Выбран класс: ${cls.name}. Добро пожаловать в Пепельник.`);
+  renderAll();
+}
+
+/* =============================
+   РЕНДЕР
+============================= */
+const el = id => document.getElementById(id);
+
+function renderClassSelect(){
+  if (G.player) { el("charActions").innerHTML=""; return; }
+  el("char").innerHTML = `<div class="badge">Выберите класс</div>`;
+  const wrap = el("charActions"); wrap.innerHTML="";
+  for (const c of CLASSES){
+    const btn = document.createElement("button");
+    btn.textContent = `${c.name} — ${c.desc}`;
+    btn.onclick = ()=>createPlayer(c.id);
+    wrap.appendChild(btn);
+  }
+}
+
+function renderChar(){
+  if (!G.player){
+    el("char").innerHTML = "<i>Персонаж не создан.</i>";
+    return;
+  }
+  const p = G.player;
+  el("char").innerHTML = `
+    <div><span class="badge">Класс</span> ${p.name} (ур. ${p.level})</div>
+    <div><span class="badge">HP</span> ${p.hp}/${p.hpMax} | <span class="badge">Мана</span> ${p.mana}/${p.manaMax}</div>
+    <div><span class="badge">Сил</span> ${p.str} <span class="badge">Лов</span> ${p.agi} <span class="badge">Инт</span> ${p.int}</div>
+    <div><span class="badge">Уклон</span> ${p.dodge}% <span class="badge">Вытяг</span> ${p.lifesteal}%</div>
+    <div><span class="badge">Оружие</span> ${G.equipped.weapon? ITEMS[G.equipped.weapon].name : "—"}
+         <span class="badge">Доспех</span> ${G.equipped.armor? ITEMS[G.equipped.armor].name : "—"}</div>
+  `;
+  const wrap = el("charActions"); wrap.innerHTML="";
+  // навыки
+  for (const sk of p.skills){
+    if (sk.type==="active"){
+      const b = document.createElement("button");
+      b.textContent = `${sk.name} (${sk.manaCost} м.)`;
+      b.onclick = ()=>castSkill(sk.id);
+      b.disabled = !G.inCombat;
+      wrap.appendChild(b);
+    }
+  }
+  // базовая атака
+  const atk = document.createElement("button");
+  atk.textContent = "Базовая атака";
+  atk.onclick = basicAttack;
+  atk.disabled = !G.inCombat;
+  wrap.appendChild(atk);
+
+  // отдых
+  const rest = document.createElement("button");
+  rest.textContent = "Отдых (в безопасном месте)";
+  rest.onclick = ()=>{
+    if (G.location!=="village"){ addLog("Отдых безопасен только в деревне."); return; }
+    G.player.hp = G.player.hpMax;
+    G.player.mana = G.player.manaMax;
+    addLog("Вы отдохнули и восстановили силы.");
+    renderAll();
+  };
+  wrap.appendChild(rest);
+
+  // сохранить/загрузить
+  const s = document.createElement("button");
+  s.textContent = "Сохранить";
+  s.onclick = save;
+  wrap.appendChild(s);
+
+  const l = document.createElement("button");
+  l.textContent = "Загрузить";
+  l.onclick = load;
+  wrap.appendChild(l);
+
+  const r = document.createElement("button");
+  r.textContent = "Новая игра";
+  r.onclick = reset;
+  wrap.appendChild(r);
+}
+
+function renderLocation(){
+  const loc = LOCATIONS.find(l=>l.id===G.location);
+  const enemies = loc.encounters.map(id=>ENEMIES[id].name).join(", ");
+  el("location").innerHTML = `
+    <div><span class="badge">Где</span> ${loc.name} (уровень зоны: ${loc.tier})</div>
+    <div><span class="badge">Соседи</span> ${loc.neighbors.map(n=>LOCATIONS.find(l=>l.id===n).name).join(" • ")}</div>
+    <div><span class="badge">Враги</span> ${enemies || "редко"}</div>
+    <div><span class="badge">NPC</span> ${loc.npcs.map(n=>NPCS[n].name).join(" • ") || "нет"}</div>
+  `;
+  const wrap = el("locActions"); wrap.innerHTML="";
+  // переходы
+  for (const n of loc.neighbors){
+    const b = document.createElement("button");
+    b.textContent = `Идти: ${LOCATIONS.find(l=>l.id===n).name}`;
+    b.onclick = ()=>moveTo(n);
+    b.disabled = !!G.inCombat;
+    wrap.appendChild(b);
+  }
+  // общение с NPC
+  for (const n of loc.npcs){
+    const b = document.createElement("button");
+    b.textContent = `Поговорить: ${NPCS[n].name}`;
+    b.onclick = ()=>{ talkTo(n); renderQuests(); renderCraftActions(); };
+    b.disabled = !!G.inCombat;
+    wrap.appendChild(b);
+  }
+  // поиск встречи
+  const ebtn = document.createElement("button");
+  ebtn.textContent = "Осмотреться (поиск врага)";
+  ebtn.onclick = randomEncounter;
+  ebtn.disabled = !!G.inCombat;
+  wrap.appendChild(ebtn);
+}
+
+function renderInventory(){
+  const wrap = el("inventory"); wrap.innerHTML="";
+  const ids = Object.keys(G.inventory);
+  if (ids.length===0){ wrap.innerHTML="<i>Пусто</i>"; return; }
+  for (const id of ids){
+    const it = ITEMS[id];
+    const div = document.createElement("div");
+    div.className = "item "+(it?.rarity==="rare"?"rare": it?.rarity==="epic"?"epic":"");
+    div.innerHTML = `
+      <div><b>${it?.name||id}</b> ×${G.inventory[id]}</div>
+      <div class="footer">${it?.type||"—"} / ${it?.rarity||"—"}</div>
+    `;
+    // действия
+    const equipBtn = document.createElement("button");
+    equipBtn.textContent = "Экипировать";
+    equipBtn.onclick = ()=>equip(id);
+    equipBtn.disabled = !(it && (it.type==="weapon"||it.type==="armor"));
+    div.appendChild(equipBtn);
+
+    const useBtn = document.createElement("button");
+    useBtn.textContent = "Использовать";
+    useBtn.onclick = ()=>consume(id);
+    useBtn.disabled = !(it && it.type==="consum");
+    div.appendChild(useBtn);
+
+    wrap.appendChild(div);
+  }
+}
+
+function renderQuests(){
+  const wrap = el("quests");
+  if (G.quests.length===0) wrap.innerHTML = "<i>Активных квестов нет.</i>";
+  else {
+    wrap.innerHTML = G.quests.map(q=>{
+      const data = QUESTS[q.id];
+      const prog = data.type==="kill" ? `${q.progress}/${data.count}` : (q.status==="complete" ? "готово" : "предмет");
+      return `<div class="item"><b>${data.name}</b><br/><span class="footer">${data.desc}</span><br/>Статус: ${q.status} | Прогресс: ${prog}</div>`;
+    }).join("");
+  }
+  const acts = el("questActions"); acts.innerHTML="";
+  // Предложение принять квесты у NPC в текущей локации
+  const loc = LOCATIONS.find(l=>l.id===G.location);
+  for (const n of loc.npcs){
+    const npc = NPCS[n];
+    if (npc.quests){
+      for (const qId of npc.quests){
+        const btn = document.createElement("button");
+        btn.textContent = `Принять: ${QUESTS[qId].name}`;
+        btn.onclick = ()=>acceptQuest(qId);
+        btn.disabled = !!G.quests.find(q=>q.id===qId);
+        acts.appendChild(btn);
+
+        const turn = document.createElement("button");
+        turn.textContent = `Сдать: ${QUESTS[qId].name}`;
+        turn.onclick = ()=>turnInQuest(qId);
+        acts.appendChild(turn);
+      }
+    }
+  }
+}
+
+function renderCraftActions(){
+  const wrap = el("globalActions"); wrap.innerHTML="";
+  const loc = LOCATIONS.find(l=>l.id===G.location);
+  // показать рецепты от ремесленников локации
+  for (const n of loc.npcs){
+    const npc = NPCS[n];
+    if (npc.craft){
+      for (const rId of npc.craft){
+        const rec = RECIPES[rId];
+        const btn = document.createElement("button");
+        btn.textContent = `Крафт: ${rec.name} (${Object.entries(rec.requires).map(([k,v])=>`${ITEMS[k].name}×${v}`).join(", ")})`;
+        btn.onclick = ()=>craft(rId);
+        wrap.appendChild(btn);
+      }
+    }
+  }
+}
+
+function renderLog(){
+  const box = el("log");
+  box.innerHTML = G.log.map(line=>`<div>• ${line}</div>`).join("");
+}
+
+function renderGlobal(){
+  const wrap = el("globalActions");
+  // если нет крафта на локации — предложить общий действия
+  if (!wrap.innerHTML){
+    const explore = document.createElement("button");
+    explore.textContent = "Исследовать окрестности";
+    explore.onclick = randomEncounter;
+    explore.disabled = !!G.inCombat;
+    wrap.appendChild(explore);
+  }
+}
+
+function renderAll(){
+  renderClassSelect();
+  renderChar();
+  renderLocation();
+  renderInventory();
+  renderQuests();
+  renderCraftActions();
+  renderGlobal();
+  renderLog();
+}
+
+/* старт */
+init();
+</script>
 </body>
 </html>
