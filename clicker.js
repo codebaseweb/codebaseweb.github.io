@@ -1,5 +1,15 @@
 // 1. Создаем "коробки" (переменные) для хранения данных игры
-let coins = 0;          // Сколько монет у игрока
+// 1. Проверяем, есть ли вообще что-то в нашей коробке памяти
+if (localStorage.getItem('myCoinsCount') !== null) {
+    
+    // 2. Если есть, достаем, ПЕРЕВОДИМ В ЧИСЛО и записываем в баланс игры
+    coins = parseInt(localStorage.getItem('myCoinsCount'));
+    
+} else {
+    // 3. Если человек зашел первый раз и коробка пустая — начинаем с нуля
+    coins = 0;
+}
+
 let autoClickers = 0;   // Сколько авто-кликеров куплено
 let upgradeCost = 10;   // Сколько стоит первый апгрейд
 
@@ -39,6 +49,7 @@ setInterval(function() {
 function updateUI() {
     coinsDisplay.innerText = coins; // Меняем баланс
     cpsDisplay.innerText = autoClickers; // Меняем скорость авто-клика
+    localStorage.setItem('myCoinsCount', coins);
     
     // Меняем текст на кнопке магазина, показывая новую цену
     upgradeBtn.innerText = "Купить Авто-кликер (Цена: " + upgradeCost + " 🪙)";
