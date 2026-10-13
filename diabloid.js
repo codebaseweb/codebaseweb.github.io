@@ -1,2 +1,2 @@
-const player {
+let player {
 }
