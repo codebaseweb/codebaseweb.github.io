@@ -29,8 +29,20 @@
     </div>
     <script>
     let coins = 10;
+    let seeds = 0;
+    let crops = 0;
     document.getElementById('coins').innerText = coins;
-    
+    document.getElementById('seeds').innerText = seeds;
+    document.getElementById('crops').innerText = crops;
+    buyBtn.addEventListener('click' , function() {
+        if (coins >= 5) {
+            coins = coins - 5;
+            seeds = seeds + 1;
+            document.getElementById('seeds').innerText = seeds;
+            document.getElementById('crops').innerText = crops;
+        } else {
+            alert("У тебя нет 5 монет, иди работай!");
+        }
     </script>
 </body>
 </html>
