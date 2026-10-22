@@ -38,8 +38,8 @@
         if (coins >= 5) {
             coins = coins - 5;
             seeds = seeds + 1;
+            document.getElementById('coins').innerText = coins;
             document.getElementById('seeds').innerText = seeds;
-            document.getElementById('crops').innerText = crops;
         } else {
             alert("У тебя нет 5 монет, иди работай!");
         }
