@@ -4,37 +4,48 @@
     <meta charset="UTF-8">
     <title>Моя текстовая ферма</title>
     <style>
-    	.conteiner button {
-    		padding: 15px 30px;
+        .conteiner button {
+            padding: 15px 30px;
             background-color: #007bff;
             border-radius: 5px;
             color: white;
             border: none;
             cursor: pointer;
-    	}
+        }
     </style>
 </head>
 <body>
 
     <h1>Моя текстовая ферма</h1>
     <div class="" id="">
-    	<p id="coins">0</p>
-    	<p id="crops">0</p>
+        <p id="coins">0</p>
+        <p id="crops">0</p>
+        <p id="seeds">0</p>
     </div>
     <div class="conteiner" id="">
-    	<button id="buyBtn">Купить семена</button>
-    	<button id="plantBtn">Посадить</button>
-    	<button id="harvestBtn">Собрать</button>
-    	<button id="sellBtn">Продать урожай</button>
+        <button id="buyBtn">Купить семена</button>
+        <button id="plantBtn">Посадить</button>
+        <button id="harvestBtn">Собрать</button>
+        <button id="sellBtn">Продать урожай</button>
     </div>
     <script>
-    let coins = 10;
+    let savedCoins = localStorage.getItem('myCoins');
+    let coins;
+    if (savedCoins === null) {
+        coins = 10;
+    } else {
+        coins = Number(savedCoins);
+    };
     let seeds = 0;
     let crops = 0;
+    let planted = 0;
     document.getElementById('coins').innerText = coins;
     document.getElementById('seeds').innerText = seeds;
     document.getElementById('crops').innerText = crops;
+    let plantBtn = document.getElementById('plantBtn');
     let buyBtn = document.getElementById('buyBtn');
+    let harvestBtn = document.getElementById('harvestBtn');
+    let sellBtn = document.getElementById('sellBtn');
     buyBtn.addEventListener('click' , function() {
         if (coins >= 5) {
             coins = coins - 5;
@@ -44,6 +55,39 @@
         } else {
             alert("У тебя нет 5 монет, иди работай!");
         }
+        });
+    plantBtn.addEventListener('click', function() {
+        if (seeds > 0) {
+            seeds = seeds - 1;
+            planted = planted + 1;
+            document.getElementById('seeds').innerText = seeds;
+            alert('Ты посадил семя! Ждем урожая.');
+        } else {
+            alert('У тебя нет семян. Сначала купи их');
+        }
+    });
+    harvestBtn.addEventListener('click', function() {
+        if (planted > 0) {
+            planted = planted - 1;
+            crops = crops + 3;
+            document.getElementById('crops').inerText = crops;
+            alert("Урожай собран! +3 к урожаю.");
+        } else {
+            alert("Нечего собирать! Сначала посади семена.");
+        }
+    });
+    sellBtn.addEventListener('click', function() {
+        if (crops > 0) {
+            crops = crops - 1;
+            coins = coins + 2;
+            document.getElementById('crops').innerText = crops;
+            document.getElementById('coins').innerText = coins;
+            localStarage.setItem('myCoins', coins);
+            alert("Урожай продан! +2 Монеты.");
+        } else {
+            alert("Нечего продавать! Сначала собери урожай.");
+        }
+    });
     </script>
 </body>
 </html>
