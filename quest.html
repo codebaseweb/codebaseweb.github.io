@@ -1,18 +1,32 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <title>Мой Супер Кликер</title>
-    <style>
-        body { font-family: sans-serif; text-align: center; background: #222; color: #fff; padding-top: 50px; }
-        button { padding: 15px 30px; font-size: 18px; margin: 10px; cursor: pointer; border-radius: 8px; border: none; }
-        #clickBtn { background: #28a745; color: white; font-weight: bold; }
-        #upgradeBtn { background: #ffc107; color: black; }
-        #upgradeBtn:disabled { background: #555; color: #aaa; cursor: not-allowed; }
-    </style>
+  <meta charset="UTF-8">
+  <title>Моя Игра</title>
+  <style>
+    body { background: #1a1a1a; color: #fff; font-family: monospace; text-align: center; margin-top: 50px; }
+  </style>
 </head>
 <body>
+  <h1>🏰 Приключение в подземелье</h1>
+  <button id="actionBtn" onclick="nextTurn()">Исследовать (1 ход)</button>
+  <div id="log" style="margin-top: 20px; border: 1px solid #444; padding: 15px; min-height: 100px;">
+    Нажмите кнопку, чтобы начать путь...
+  </div>
 
-    <script src="quest.js"></script>
+  <script>
+    function nextTurn() {
+      const events = ['Ничего не произошло...', 'Найден золотой!', 'Встречен монстр!'];
+      const weights = [0.6, 0.3, 0.1]; // Шансы: 60% тишина, 30% золото, 10% враг
+
+      // Симулируем choices() через случайное число
+      const rand = Math.random();
+      let event = events[0];
+      if (rand > 0.6 && rand <= 0.9) event = events[1];
+      else if (rand > 0.9) event = events[2];
+
+      document.getElementById('log').innerText = event;
+    }
+</script>
 </body>
 </html>
